@@ -35,6 +35,21 @@
     </div>
 </div>
 
+@{
+    string categoryClass = Model.BP.Category.ToString().ToLower();
+}
+<div class="bp-category @categoryClass">
+    <strong>Blood Pressure Category:</strong> @Model.BP.Category
+</div>
+
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
 }
+
+<style>
+    .bp-category.low {
+        background-color: #b724bf; } // light purple
+.bp-category.ideal { background-color: lightgreen; }
+.bp-category.prehigh { background-color: yellow; }
+.bp-category.high { background-color: lightcoral; }
+</style>
