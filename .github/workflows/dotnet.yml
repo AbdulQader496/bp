@@ -2,11 +2,10 @@ name: .NET CI
 
 on:
   push:
-    branches: 
-            - master
+    branches: ["master"]
   pull_request:
-    branches: 
-            - master
+    branches: ["master"]
+  workflow_dispatch:
 
 jobs:
   build-and-test:
@@ -33,10 +32,25 @@ jobs:
       - name: Install ReportGenerator tool
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
-      - name: Generate coverage summary
+      - name: Debug TestResults (show files and find coverage)
+        run: |
+          echo "=== Show TestResults tree ==="
+          ls -R TestResults || true
+          echo "=== Find coverage files ==="
+          find . -type f -name "coverage.cobertura.xml" -print || true
+
+      - name: Generate coverage summary (only if coverage files exist)
         run: |
           export PATH="$PATH:$HOME/.dotnet/tools"
-          reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" -targetdir:"coverage-report" -reporttypes:TextSummary
+          # gather coverage files (semicolon-separated) for ReportGenerator
+          files=$(find . -type f -name "coverage.cobertura.xml" -print | tr '\n' ';')
+          if [ -z "$files" ]; then
+            echo "No coverage files found. Did dotnet test complete successfully and is Microsoft.NET.Test.Sdk present in test projects?"
+            echo "See TestResults listing above for details."
+            exit 1
+          fi
+          echo "ReportGenerator input: $files"
+          reportgenerator -reports:"$files" -targetdir:"coverage-report" -reporttypes:TextSummary
           echo "---- Coverage summary ----"
           cat coverage-report/Summary.txt
 
