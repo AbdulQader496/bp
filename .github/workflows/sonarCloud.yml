@@ -1,0 +1,44 @@
+name: SonarCloud Scan
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build-and-analyse:
+    name: Build & Analyse (SonarCloud)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore dependencies
+        run: dotnet restore BPCalculator.sln
+
+      - name: Build solution
+        run: dotnet build BPCalculator.sln --configuration Release --no-incremental
+
+      # If you add tests later, they automatically produce coverage
+      # - name: Run tests (if exists)
+      #   run: |
+      #     if (Test-Path "*Tests*.csproj") {
+      #       dotnet test --collect:"XPlat Code Coverage"
+      #     } else {
+      #       echo "No test project found. Skipping tests."
+      #     }
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_CLOUD_TOKEN }}
