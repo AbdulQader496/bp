@@ -18,9 +18,10 @@ jobs:
           java-version: 17
           distribution: 'zulu'
 
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # full clone for better analysis
+          fetch-depth: 0
 
       - name: Cache SonarCloud packages
         uses: actions/cache@v4
@@ -57,9 +58,9 @@ jobs:
 
       - name: Build solution
         shell: powershell
-        run: dotnet build --configuration Debug
+        run: dotnet build BPCalculator.sln --configuration Debug
 
-      - name: Run Tests with Coverage
+      - name: Run Tests WITH Coverage
         shell: powershell
         run: |
           dotnet test TestProject1/TestProject.csproj `
@@ -71,4 +72,5 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          ${{ runner.temp }}\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+          ${{ runner.temp }}\scanner\dotnet-sonarscanner end `
+            /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
