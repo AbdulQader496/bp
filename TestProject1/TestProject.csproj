@@ -15,5 +15,11 @@
   <ItemGroup>
     <ProjectReference Include="..\BPCalculator\BPCalculator.csproj" />
   </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="coverlet.collector" Version="6.0.2">
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
+
 
 </Project>
