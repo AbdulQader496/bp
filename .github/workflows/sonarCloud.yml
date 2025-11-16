@@ -60,12 +60,10 @@ jobs:
         shell: powershell
         run: dotnet build BPCalculator.sln --configuration Debug
 
-      - name: Run Tests WITH Coverage
+      - name: Run Tests with Coverage
         shell: powershell
-        run: |
-          dotnet test TestProject1/TestProject.csproj `
-            --collect:"XPlat Code Coverage" `
-            --results-directory TestResults
+        run: dotnet test TestProject1/TestProject.csproj --collect:"XPlat Code Coverage" --results-directory TestResults
+
 
       - name: End SonarCloud analysis
         env:
