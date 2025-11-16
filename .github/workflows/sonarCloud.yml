@@ -54,16 +54,18 @@ jobs:
             /k:"AbdulQader496_bp" `
             /o:"abdulqader496" `
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-            /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.cobertura.xml"
+            /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml"
 
       - name: Build solution
         shell: powershell
         run: dotnet build BPCalculator.sln --configuration Debug
 
-      - name: Run Tests with Coverage
+      - name: Run Tests with Coverage (OpenCover)
         shell: powershell
-        run: dotnet test TestProject1/TestProject.csproj --collect:"XPlat Code Coverage" --results-directory TestResults
-
+        run: dotnet test TestProject1/TestProject.csproj `
+              --collect:"XPlat Code Coverage" `
+              --results-directory TestResults `
+              -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
 
       - name: End SonarCloud analysis
         env:
