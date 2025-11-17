@@ -1,76 +1,76 @@
-﻿name: build and package
+﻿# name: build and package
 
-on:
-  workflow_dispatch:                                # manually triggered
+# on:
+#   workflow_dispatch:                                # manually triggered
 
-jobs:
-  build_package:
-    runs-on: ubuntu-latest
+# jobs:
+#   build_package:
+#     runs-on: ubuntu-latest
 
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+#     steps:
+#     - uses: actions/checkout@v4
+#       with:
+#         fetch-depth: 0
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 9.0.x
+#     - name: Setup .NET
+#       uses: actions/setup-dotnet@v4
+#       with:
+#         dotnet-version: 9.0.x
 
-    - name: Install dependencies
-      run: dotnet restore
+#     - name: Install dependencies
+#       run: dotnet restore
 
-    - name: Build for Release
-      run: dotnet build BPCalculator/BPCalculator.csproj --configuration Release --no-restore
+#     - name: Build for Release
+#       run: dotnet build BPCalculator/BPCalculator.csproj --configuration Release --no-restore
 
-    # ===============================
-    # SONARCLOUD ANALYSIS (BEGIN)
-    # ===============================
-    - name: SonarCloud Scan - BEGIN
-      uses: SonarSource/sonarqube-scan-action@v6
-      with:
-        args: |
-          -Dsonar.organization=abdulqader496
-          -Dsonar.projectKey=AbdulQader496_bp
-          -Dsonar.cs.opencover.reportsPaths=${{ steps.coverage.outputs.coverageFile }}
-          -Dsonar.exclusions=**/bin/**,**/obj/**
-          -Dsonar.verbose=true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+#     ===============================
+#     SONARCLOUD ANALYSIS (BEGIN)
+#     ===============================
+#     - name: SonarCloud Scan - BEGIN
+#       uses: SonarSource/sonarqube-scan-action@v6
+#       with:
+#         args: |
+#           -Dsonar.organization=abdulqader496
+#           -Dsonar.projectKey=AbdulQader496_bp
+#           -Dsonar.cs.opencover.reportsPaths=${{ steps.coverage.outputs.coverageFile }}
+#           -Dsonar.exclusions=**/bin/**,**/obj/**
+#           -Dsonar.verbose=true
+#       env:
+#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-    # ===============================
-    # RUN TESTS WITH COVERAGE
-    # ===============================
-    - name: Run Unit Tests + Coverage
-      run: |
-        dotnet test TestProject1/TestProject.csproj \
-          --collect:"XPlat Code Coverage" \
-          --results-directory ./TestResults
+#     ===============================
+#     RUN TESTS WITH COVERAGE
+#     ===============================
+#     - name: Run Unit Tests + Coverage
+#       run: |
+#         dotnet test TestProject1/TestProject.csproj \
+#           --collect:"XPlat Code Coverage" \
+#           --results-directory ./TestResults
 
-    - name: Locate Coverage File
-      id: coverage
-      run: |
-        FILE=$(find TestResults -name "coverage.cobertura.xml")
-        echo "coverageFile=$FILE" >> $GITHUB_OUTPUT
-        echo "Found coverage file: $FILE"
+#     - name: Locate Coverage File
+#       id: coverage
+#       run: |
+#         FILE=$(find TestResults -name "coverage.cobertura.xml")
+#         echo "coverageFile=$FILE" >> $GITHUB_OUTPUT
+#         echo "Found coverage file: $FILE"
 
-    - name: Upload coverage file
-      uses: actions/upload-artifact@v4
-      with:
-        name: cobertura-coverage
-        path: ${{ steps.coverage.outputs.coverageFile }}
+#     - name: Upload coverage file
+#       uses: actions/upload-artifact@v4
+#       with:
+#         name: cobertura-coverage
+#         path: ${{ steps.coverage.outputs.coverageFile }}
 
 
-    # ===============================
-    # SONARCLOUD ANALYSIS (END)
-    # ===============================
-    - name: SonarCloud Scan - END
-      uses: SonarSource/sonarqube-quality-gate-action@v1
-      with:
-        projectKey: AbdulQader496_bp
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+#     ===============================
+#     SONARCLOUD ANALYSIS (END)
+#     ===============================
+#     - name: SonarCloud Scan - END
+#       uses: SonarSource/sonarqube-quality-gate-action@v1
+#       with:
+#         projectKey: AbdulQader496_bp
+#       env:
+#         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
 
 
