@@ -55,6 +55,7 @@ jobs:
             /k:"AbdulQader496_bp" `
             /o:"abdulqader496" `
             /d:sonar.token="$env:SONAR_TOKEN" `
+            /d:sonar.projectBaseDir="." `
             /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml"
 
       - name: Build solution
@@ -76,83 +77,3 @@ jobs:
         run: |
           ${{ runner.temp }}\scanner\dotnet-sonarscanner end `
             /d:sonar.token="$env:SONAR_TOKEN"
-
-
-
-# name: SonarCloud
-# on:
-#   push:
-#     branches:
-#       - master
-#   pull_request:
-#     types: [opened, synchronize, reopened]
-
-# jobs:
-#   build:
-#     name: Build, Test and Analyze
-#     runs-on: windows-latest
-
-#     steps:
-#       - name: Set up JDK 17
-#         uses: actions/setup-java@v4
-#         with:
-#           java-version: 17
-#           distribution: 'zulu'
-
-#       - name: Checkout repository
-#         uses: actions/checkout@v4
-#         with:
-#           fetch-depth: 0
-
-#       - name: Cache SonarCloud packages
-#         uses: actions/cache@v4
-#         with:
-#           path: ~\sonar\cache
-#           key: ${{ runner.os }}-sonar
-#           restore-keys: ${{ runner.os }}-sonar
-
-#       - name: Cache SonarCloud scanner
-#         id: cache-sonar-scanner
-#         uses: actions/cache@v4
-#         with:
-#           path: ${{ runner.temp }}\scanner
-#           key: ${{ runner.os }}-sonar-scanner
-#           restore-keys: ${{ runner.os }}-sonar-scanner
-
-#       - name: Install SonarCloud scanner
-#         if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
-#         shell: powershell
-#         run: |
-#           New-Item -Path ${{ runner.temp }}\scanner -ItemType Directory
-#           dotnet tool update dotnet-sonarscanner --tool-path ${{ runner.temp }}\scanner
-
-#       - name: Begin SonarCloud analysis
-#         env:
-#           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-#         shell: powershell
-#         run: |
-#           ${{ runner.temp }}\scanner\dotnet-sonarscanner begin `
-#             /k:"AbdulQader496_bp" `
-#             /o:"abdulqader496" `
-#             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-#             /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml"
-
-#       - name: Build solution
-#         shell: powershell
-#         run: dotnet build BPCalculator.sln --configuration Debug
-
-#       - name: Run Tests with Coverage (OpenCover)
-#         shell: powershell
-#         run: dotnet test TestProject1/TestProject.csproj `
-#               --collect:"XPlat Code Coverage" `
-#               --results-directory TestResults `
-#               -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
-
-#       - name: End SonarCloud analysis
-#         env:
-#           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-#         shell: powershell
-#         run: |
-#           ${{ runner.temp }}\scanner\dotnet-sonarscanner end `
-#             /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
-            
