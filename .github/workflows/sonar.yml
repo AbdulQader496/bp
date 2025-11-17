@@ -32,7 +32,7 @@ jobs:
         args: |
           -Dsonar.organization=abdulqader496
           -Dsonar.projectKey=AbdulQader496_bp
-          -Dsonar.cs.opencover.reportsPaths=**/coverage.opencover.xml
+          -Dsonar.cs.opencover.reportsPaths=${{ steps.coverage.outputs.coverageFile }}
           -Dsonar.exclusions=**/bin/**,**/obj/**
           -Dsonar.verbose=true
       env:
@@ -46,23 +46,21 @@ jobs:
       run: |
         dotnet test TestProject1/TestProject.csproj \
           --collect:"XPlat Code Coverage" \
-          --results-directory TestResults
+          --results-directory ./TestResults
 
-    # Convert `.coverage` → OpenCover `.xml`
-    - name: Convert Coverage to OpenCover
+    - name: Locate Coverage File
+      id: coverage
       run: |
-        report=$(find TestResults -name "*.coverage")
-        dotnet tool install -g dotnet-reportgenerator-globaltool
-        reportgenerator \
-          "-reports:$report" \
-          "-targetdir:coveragereport" \
-          "-reporttypes:opencover"
+        FILE=$(find TestResults -name "coverage.cobertura.xml")
+        echo "coverageFile=$FILE" >> $GITHUB_OUTPUT
+        echo "Found coverage file: $FILE"
 
     - name: Upload coverage file
       uses: actions/upload-artifact@v4
       with:
-        name: coverage-opencover
-        path: coveragereport/coverage.opencover.xml
+        name: cobertura-coverage
+        path: ${{ steps.coverage.outputs.coverageFile }}
+
 
     # ===============================
     # SONARCLOUD ANALYSIS (END)
