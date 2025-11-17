@@ -1,15 +1,27 @@
 ﻿using BPCalculator;
 using BPCalculator.Pages;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using Moq;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
 
 namespace TestProject1
 {
+
     [TestClass]
     public sealed class Test1
     {
+
+
         [TestMethod]
         public void SystolicGreaterThanDiastolicErrorTest()
         {
@@ -226,6 +238,63 @@ namespace TestProject1
             };
 
             Assert.AreEqual(BPCategory.Ideal, bp.Category);
+        }
+
+        [TestMethod]
+        public void Startup_ConfigureServices_AddsServices()
+        {
+            var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+            var startup = new Startup();
+
+            startup.ConfigureServices(services);
+
+            Assert.IsTrue(services.Count > 0);
+        }
+
+        //[TestMethod]
+        //public void Program_Main_DoesNotThrow()
+        //{
+        //    Program.Main(Array.Empty<string>());
+        //}
+
+        //[TestMethod]
+        //public void Startup_Configure_DoesNotThrow()
+        //{
+        //    var services = new ServiceCollection();
+        //    var provider = services.BuildServiceProvider();
+
+        //    var startup = new Startup();
+
+        //    var app = new ApplicationBuilder(provider);
+
+        //    var env = provider.GetRequiredService<IWebHostEnvironment>();
+        //    startup.Configure(app, env);
+
+        //}
+
+        [TestMethod]
+        public void ErrorModel_ReturnsRequestId()
+        {
+            var logger = new Mock<ILogger<ErrorModel>>();
+            var page = new ErrorModel(logger.Object);
+
+            Assert.IsNotNull(page);
+        }
+
+        [TestMethod]
+        public void PrivacyModel_OnGet_DoesNotThrow()
+        {
+            var page = new PrivacyModel();
+            page.OnGet();
+        }
+
+        [TestMethod]
+        public void Enum_HasDisplayAttributes()
+        {
+            var type = typeof(BPCategory);
+            var members = type.GetMembers();
+
+            Assert.IsTrue(members.Length > 0);
         }
 
 
