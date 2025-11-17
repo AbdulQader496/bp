@@ -1,0 +1,58 @@
+name: build and package
+
+on:
+  workflow_dispatch:                                # manually triggered
+
+jobs:
+  build_package:
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Install dependencies
+      run: dotnet restore 
+
+    - name: Build for release
+      run: dotnet build BPCalculator/BPCalculator.csproj --configuration Release --no-restore 
+
+ 
+    # run sonar cloud analyis (report in https://sonarcloud.io/project/information?id=gclynch_bankCI2022)
+    # define SONAR_TOKEN secret in repo to match token in Sonarcloud account
+    - name: Analyze code with SonarCloud
+      uses: SonarSource/sonarqube-scan-action@v6
+      with:
+        args: >
+          -Dsonar.organization=abdulqader496
+          -Dsonar.projectKey=AbdulQader496_bp
+          -Dsonar.python.coverage.reportPaths=coverage.xml
+          -Dsonar.verbose=true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    # run standard unit tests
+    - name: Run Unit Tests
+      run: dotnet test BankUnitTest/BankUnitTest.csproj  --verbosity normal -l:trx
+
+    # run Specflow+ tests
+    - name: Run Acceptance Tests 
+      run: dotnet test BankAcceptanceTest/BankAcceptanceTest.csproj  --verbosity normal -l:trx
+
+    # create NuGet package
+    - name: Package for NuGet
+      run: dotnet pack Bank/Bank.csproj /p:PackageVersion=1.0.0 --configuration Release --output .
+
+    # upload NuGet Package
+    - name: Upload Nuget package as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: NuGet package
+        path: ./*.nupkg
