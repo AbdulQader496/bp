@@ -55,7 +55,6 @@ jobs:
             /k:"AbdulQader496_bp" `
             /o:"abdulqader496" `
             /d:sonar.token="$env:SONAR_TOKEN" `
-            /d:sonar.projectBaseDir="." `
             /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml"
 
       - name: Build solution
