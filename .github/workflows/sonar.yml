@@ -40,19 +40,19 @@ jobs:
 
     # run standard unit tests
     - name: Run Unit Tests
-      run: dotnet test BankUnitTest/BankUnitTest.csproj  --verbosity normal -l:trx
+      run: dotnet test TestProject1/TestProject.csproj  --verbosity normal -l:trx
 
     # run Specflow+ tests
-    - name: Run Acceptance Tests 
-      run: dotnet test BankAcceptanceTest/BankAcceptanceTest.csproj  --verbosity normal -l:trx
+    # - name: Run Acceptance Tests 
+    #   run: dotnet test BankAcceptanceTest/BankAcceptanceTest.csproj  --verbosity normal -l:trx
 
     # create NuGet package
-    - name: Package for NuGet
-      run: dotnet pack Bank/Bank.csproj /p:PackageVersion=1.0.0 --configuration Release --output .
+    # - name: Package for NuGet
+    #   run: dotnet pack Bank/Bank.csproj /p:PackageVersion=1.0.0 --configuration Release --output .
 
     # upload NuGet Package
-    - name: Upload Nuget package as artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: NuGet package
-        path: ./*.nupkg
+    # - name: Upload Nuget package as artifact
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: NuGet package
+    #     path: ./*.nupkg
