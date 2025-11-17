@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # NuGet (.NET) dependencies
+  - package-ecosystem: "nuget"
+    directory: "/"            # root of the repo
+    schedule:
+      interval: "weekly"
+    # optional: you can limit number of open PRs
+    open-pull-requests-limit: 5
+    # optional: you can ignore certain groups
+    #ignore:
+    #  - dependency-name: "Microsoft.EntityFrameworkCore"
+    #    versions: ["< 6.0.0"]
+
+  # GitHub Actions (updates for workflows)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Docker images (if you add Docker later)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
