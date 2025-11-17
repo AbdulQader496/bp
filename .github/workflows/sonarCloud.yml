@@ -73,5 +73,5 @@ jobs:
         shell: powershell
         run: |
           ${{ runner.temp }}\scanner\dotnet-sonarscanner end `
-            /d:sonar.token="${{ secrets.SONAR_TOKEN }"
+            /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
             
