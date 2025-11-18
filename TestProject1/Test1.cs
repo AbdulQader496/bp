@@ -153,26 +153,6 @@ namespace TestProject1
             Assert.AreEqual(60, page.BP.Diastolic);
         }
 
-
-
-        //[TestMethod]
-        //public void PageModel_InitializesBPProperty()
-        //{
-        //    var page = new BloodPressureModel();
-
-        //    Assert.IsNotNull(page.BP);
-        //}
-        //[TestMethod]
-        //public void OnPost_ModelStateErrorsRemainOnReturn()
-        //{
-        //    var page = new BloodPressureModel();
-        //    page.ModelState.AddModelError("Test", "Error");
-
-        //    var result = page.OnPost();
-
-        //    Assert.IsFalse(page.ModelState.IsValid);
-        //}
-
         [TestMethod]
         public void PageModel_InitializesBPProperty_OnGet()
         {
@@ -241,38 +221,6 @@ namespace TestProject1
         }
 
         [TestMethod]
-        public void Startup_ConfigureServices_AddsServices()
-        {
-            var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
-            var startup = new Startup();
-
-            startup.ConfigureServices(services);
-
-            Assert.IsTrue(services.Count > 0);
-        }
-
-        //[TestMethod]
-        //public void Program_Main_DoesNotThrow()
-        //{
-        //    Program.Main(Array.Empty<string>());
-        //}
-
-        //[TestMethod]
-        //public void Startup_Configure_DoesNotThrow()
-        //{
-        //    var services = new ServiceCollection();
-        //    var provider = services.BuildServiceProvider();
-
-        //    var startup = new Startup();
-
-        //    var app = new ApplicationBuilder(provider);
-
-        //    var env = provider.GetRequiredService<IWebHostEnvironment>();
-        //    startup.Configure(app, env);
-
-        //}
-
-        [TestMethod]
         public void ErrorModel_ReturnsRequestId()
         {
             var logger = new Mock<ILogger<ErrorModel>>();
@@ -300,3 +248,53 @@ namespace TestProject1
 
     }
 }
+
+
+//[TestMethod]
+//public void Startup_ConfigureServices_AddsServices()
+//{
+//    var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+//    var startup = new Startup();
+
+//    startup.ConfigureServices(services);
+
+//    Assert.IsTrue(services.Count > 0);
+//}
+
+//[TestMethod]
+//public void Program_Main_DoesNotThrow()
+//{
+//    Program.Main(Array.Empty<string>());
+//}
+
+//[TestMethod]
+//public void Startup_Configure_DoesNotThrow()
+//{
+//    var services = new ServiceCollection();
+//    var provider = services.BuildServiceProvider();
+
+//    var startup = new Startup();
+
+//    var app = new ApplicationBuilder(provider);
+
+//    var env = provider.GetRequiredService<IWebHostEnvironment>();
+//    startup.Configure(app, env);
+
+//}
+//[TestMethod]
+//public void PageModel_InitializesBPProperty()
+//{
+//    var page = new BloodPressureModel();
+
+//    Assert.IsNotNull(page.BP);
+//}
+//[TestMethod]
+//public void OnPost_ModelStateErrorsRemainOnReturn()
+//{
+//    var page = new BloodPressureModel();
+//    page.ModelState.AddModelError("Test", "Error");
+
+//    var result = page.OnPost();
+
+//    Assert.IsFalse(page.ModelState.IsValid);
+//}
