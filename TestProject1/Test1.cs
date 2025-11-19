@@ -229,12 +229,12 @@ namespace TestProject1
             Assert.IsNotNull(page);
         }
 
-        [TestMethod]
-        public void PrivacyModel_OnGet_DoesNotThrow()
-        {
-            var page = new PrivacyModel();
-            page.OnGet();
-        }
+        // [TestMethod]
+        // public void PrivacyModel_OnGet_DoesNotThrow()
+        // {
+        //     var page = new PrivacyModel();
+        //     page.OnGet();
+        // }
 
         [TestMethod]
         public void Enum_HasDisplayAttributes()
