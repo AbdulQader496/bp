@@ -1,40 +1,35 @@
 name: OWASP Dependency-Check
 
-on:
-  workflow_dispatch:
-  pull_request:
-  push:
-    branches:
-      - master
+on: workflow_dispatch
 
 jobs:
   dependency-check:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Cache OWASP DC data
+      # Optional but nice: cache the Dependency-Check data dir so NVD doesn't download every run
+      - name: Cache Dependency-Check data
         uses: actions/cache@v4
         with:
-          path: ~/.m2/repository/org/owasp/dependency-check-data
-          key: ${{ runner.os }}-odc
-          restore-keys: ${{ runner.os }}-odc
+          path: ~/.dependency-check
+          key: ${{ runner.os }}-dependency-check
+          restore-keys: |
+            ${{ runner.os }}-dependency-check
 
-      - name: Run OWASP Dependency-Check (Exclude jquery-validation)
+      - name: Run OWASP Dependency-Check
         uses: dependency-check/Dependency-Check_Action@main
         with:
-          project: "BPCalculator"
+          project: "bp"
           path: "."
           format: "HTML"
-          out: "odc-report"
-          args: >
-            --failOnCVSS 7
-            --exclude **/wwwroot/lib/jquery-validation/**
+          out: "dependency-check-report"
 
-      - name: Upload Dependency-Check Report
+      # Upload the HTML report as an artifact so you can download it
+      - name: Upload Dependency-Check report
         uses: actions/upload-artifact@v4
         with:
           name: dependency-check-report
-          path: odc-report
+          path: dependency-check-report
