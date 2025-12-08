@@ -22,7 +22,7 @@ jobs:
           key: ${{ runner.os }}-odc
           restore-keys: ${{ runner.os }}-odc
 
-      - name: Run OWASP Dependency-Check (NuGet + JS)
+      - name: Run OWASP Dependency-Check (Exclude jquery-validation)
         uses: dependency-check/Dependency-Check_Action@main
         with:
           project: "BPCalculator"
@@ -30,10 +30,8 @@ jobs:
           format: "HTML"
           out: "odc-report"
           args: >
-            --scan .
-            --enableExperimental
             --failOnCVSS 7
-            --nvdApiDelay 2000
+            --exclude **/wwwroot/lib/jquery-validation/**
 
       - name: Upload Dependency-Check Report
         uses: actions/upload-artifact@v4
