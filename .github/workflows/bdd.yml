@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 jobs:
-  e2e:
+  bdd:
     runs-on: windows-latest
 
     steps:
