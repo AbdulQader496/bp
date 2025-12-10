@@ -14,64 +14,74 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup .NET 9
+    - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 9.0.x
 
-    - name: Install Chrome
-      uses: browser-actions/setup-chrome@v1
-
-    - name: Install ChromeDriver matching Chrome
+    # ✅ Install real Google Chrome (MSI installer)
+    - name: Install Google Chrome
       run: |
-        $chromeVersion = (chrome --version).Split(" ")[2]
-        echo "Chrome version: $chromeVersion"
-        
-        Invoke-WebRequest `
-          -Uri "https://msedgedriver.azureedge.net/LATEST_RELEASE_$chromeVersion" `
-          -OutFile latest.txt
+        Invoke-WebRequest -Uri "https://dl.google.com/tag/s/appguid%3D%7B8A69D345-D564-463C-AFF1-A69D9E530F96%7D%26iid%3D%7B00000000-0000-0000-0000-000000000000%7D%26lang%3Den%26browser%3D0%26usagestats%3D0%26appname%3DChrome%26needsadmin%3Dprefers/edgedl/chrome/install/GoogleChromeStandaloneEnterprise64.msi" -OutFile chrome.msi
+        Start-Process msiexec.exe -Wait -ArgumentList "/i chrome.msi /qn /norestart"
 
-        $driverVersion = Get-Content latest.txt
-
-        echo "Installing ChromeDriver version: $driverVersion"
-
-        Invoke-WebRequest `
-          -Uri "https://msedgedriver.azureedge.net/$driverVersion/chromedriver_win32.zip" `
-          -OutFile driver.zip
-        
-        Expand-Archive driver.zip -DestinationPath "C:\Tools\ChromeDriver"
-        echo "C:\Tools\ChromeDriver" | Out-File -FilePath $env:GITHUB_PATH -Append
-
-    - name: Print Chrome & ChromeDriver versions
+    - name: Verify Chrome Install
       run: |
-        chrome --version
+        $chromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"
+        if (!(Test-Path $chromePath)) {
+          throw "Chrome failed to install"
+        }
+        & $chromePath --version
+
+    # ✅ Install ChromeDriver that matches installed Chrome
+    - name: Install ChromeDriver
+      run: |
+        $version = & "C:\Program Files\Google\Chrome\Application\chrome.exe" --version
+        Write-Host "Installed Chrome: $version"
+        
+        $chromeVer = $version.Split(" ")[2]
+        $major = $chromeVer.Split(".")[0]
+        Write-Host "Chrome major version: $major"
+
+        Invoke-WebRequest -Uri "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_$major" -OutFile latest.txt
+        $driverVer = Get-Content latest.txt
+        
+        Write-Host "Downloading ChromeDriver version: $driverVer"
+
+        Invoke-WebRequest -Uri "https://storage.googleapis.com/chrome-for-testing-public/$driverVer/win64/chromedriver-win64.zip" -OutFile driver.zip
+        
+        Expand-Archive driver.zip -DestinationPath "C:\ChromeDriver"
+        echo "C:\ChromeDriver\chromedriver-win64" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+    - name: Verify ChromeDriver
+      run: |
         chromedriver --version
 
-    - name: Restore Dependencies
-      run: dotnet restore
-
+    # ⚠ Build your .NET API
     - name: Build API
       run: dotnet build BPCalculator/BPCalculator.csproj --configuration Release
 
-    - name: Start API in background
+    # 🔥 Start API
+    - name: Start API
       run: |
         Start-Process -NoNewWindow `
           dotnet `
           -ArgumentList "run --project BPCalculator/BPCalculator.csproj --urls http://localhost:5000"
 
-    - name: Wait for API to start
+    # 🕒 Wait for API
+    - name: Wait for API to become ready
       run: |
-        echo "Waiting for http://localhost:5000 ..."
-        for ($i = 1; $i -le 40; $i++) {
+        for ($i=1; $i -le 40; $i++) {
             try {
-                $result = Invoke-WebRequest -Uri "http://localhost:5000" -UseBasicParsing -TimeoutSec 2
-                echo "API is UP!"
+                Invoke-WebRequest -Uri "http://localhost:5000" -UseBasicParsing -TimeoutSec 2
+                Write-Host "API is UP"
                 break
             } catch {
-                echo "API not ready yet... ($i/40)"
+                Write-Host "Waiting for API... ($i/40)"
                 Start-Sleep -Seconds 2
             }
         }
 
+    # Run Selenium tests
     - name: Run Selenium Tests
       run: mvn -f selenium-tests/pom.xml clean test
