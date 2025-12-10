@@ -1,87 +1,94 @@
-name: E2E Tests
+name: Run E2E Tests (Windows)
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main, master ]
-  pull_request:
+    branches: [ main ]
 
 jobs:
-  e2e-tests:
+  e2e:
     runs-on: windows-latest
 
+    env:
+      WDM_FORCE_DOWNLOAD: true   # Ensures WebDriverManager picks correct ChromeDriver
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      # -------------------------------
+      # 1. Checkout the .NET app repo
+      # -------------------------------
+      - name: Checkout App Repo (bp)
+        uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 9.0.x
+      # ----------------------------------------
+      # 2. Checkout the Selenium test repository
+      # ----------------------------------------
+      - name: Checkout Selenium Test Repo
+        uses: actions/checkout@v4
+        with:
+          repository: AbdulQader496/bpTestSelenium
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: selenium-tests
 
-    # ✅ Install real Google Chrome (MSI installer)
-    - name: Install Google Chrome
-      run: |
-        Invoke-WebRequest -Uri "https://dl.google.com/tag/s/appguid%3D%7B8A69D345-D564-463C-AFF1-A69D9E530F96%7D%26iid%3D%7B00000000-0000-0000-0000-000000000000%7D%26lang%3Den%26browser%3D0%26usagestats%3D0%26appname%3DChrome%26needsadmin%3Dprefers/edgedl/chrome/install/GoogleChromeStandaloneEnterprise64.msi" -OutFile chrome.msi
-        Start-Process msiexec.exe -Wait -ArgumentList "/i chrome.msi /qn /norestart"
+      # -------------------------------
+      # 3. Setup .NET 9
+      # -------------------------------
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
 
-    - name: Verify Chrome Install
-      run: |
-        $chromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"
-        if (!(Test-Path $chromePath)) {
-          throw "Chrome failed to install"
-        }
-        & $chromePath --version
+      # ---------------------------------------
+      # 4. Build and start the API in background
+      # ---------------------------------------
+      - name: Build & Start API
+        run: |
+          dotnet restore
+          dotnet build --configuration Release
+          Start-Process -FilePath "dotnet" -ArgumentList "run --urls http://localhost:5000" -NoNewWindow
 
-    # ✅ Install ChromeDriver that matches installed Chrome
-    - name: Install ChromeDriver
-      run: |
-        $version = & "C:\Program Files\Google\Chrome\Application\chrome.exe" --version
-        Write-Host "Installed Chrome: $version"
-        
-        $chromeVer = $version.Split(" ")[2]
-        $major = $chromeVer.Split(".")[0]
-        Write-Host "Chrome major version: $major"
-
-        Invoke-WebRequest -Uri "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_$major" -OutFile latest.txt
-        $driverVer = Get-Content latest.txt
-        
-        Write-Host "Downloading ChromeDriver version: $driverVer"
-
-        Invoke-WebRequest -Uri "https://storage.googleapis.com/chrome-for-testing-public/$driverVer/win64/chromedriver-win64.zip" -OutFile driver.zip
-        
-        Expand-Archive driver.zip -DestinationPath "C:\ChromeDriver"
-        echo "C:\ChromeDriver\chromedriver-win64" | Out-File -FilePath $env:GITHUB_PATH -Append
-
-    - name: Verify ChromeDriver
-      run: |
-        chromedriver --version
-
-    # ⚠ Build your .NET API
-    - name: Build API
-      run: dotnet build BPCalculator/BPCalculator.csproj --configuration Release
-
-    # 🔥 Start API
-    - name: Start API
-      run: |
-        Start-Process -NoNewWindow `
-          dotnet `
-          -ArgumentList "run --project BPCalculator/BPCalculator.csproj --urls http://localhost:5000"
-
-    # 🕒 Wait for API
-    - name: Wait for API to become ready
-      run: |
-        for ($i=1; $i -le 40; $i++) {
+      # -----------------------------------------------------
+      # 5. Wait until API is reachable (fixes ERR_CONNECTION_REFUSED)
+      # -----------------------------------------------------
+      - name: Wait for API to be Ready
+        run: |
+          for ($i=0; $i -lt 40; $i++) {
             try {
-                Invoke-WebRequest -Uri "http://localhost:5000" -UseBasicParsing -TimeoutSec 2
-                Write-Host "API is UP"
-                break
+              Invoke-WebRequest -Uri "http://localhost:5000" -UseBasicParsing -TimeoutSec 1
+              Write-Host "API is UP!"
+              break
             } catch {
-                Write-Host "Waiting for API... ($i/40)"
-                Start-Sleep -Seconds 2
+              Write-Host "Waiting for API..."
+              Start-Sleep -Seconds 1
             }
-        }
+          }
 
-    # Run Selenium tests
-    - name: Run Selenium Tests
-      run: mvn -f selenium-tests/pom.xml clean test
+      # -------------------------------
+      # 6. Setup Java
+      # -------------------------------
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      # -------------------------------
+      # 7. Setup Chrome for Selenium
+      # -------------------------------
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      # -------------------------------
+      # 8. Run Selenium tests (Java + Maven)
+      # -------------------------------
+      - name: Run Selenium Tests
+        working-directory: selenium-tests
+        run: mvn -B test
+
+      # -------------------------------
+      # 9. Upload test results
+      # -------------------------------
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-test-results
+          path: selenium-tests/target/surefire-reports
