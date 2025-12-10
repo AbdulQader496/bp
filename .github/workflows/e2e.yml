@@ -9,84 +9,72 @@ jobs:
   e2e:
     runs-on: windows-latest
 
-    env:
-      WDM_FORCE_DOWNLOAD: true   # Ensures WebDriverManager picks correct ChromeDriver
-
     steps:
-      # -------------------------------
-      # 1. Checkout the .NET app repo
-      # -------------------------------
-      - name: Checkout App Repo (bp)
+      # 1. Checkout .NET App (Repo A)
+      - name: Checkout App Repo
         uses: actions/checkout@v4
 
-      # ----------------------------------------
-      # 2. Checkout the Selenium test repository
-      # ----------------------------------------
+      # 2. Checkout Selenium Test Repo
       - name: Checkout Selenium Test Repo
         uses: actions/checkout@v4
         with:
           repository: AbdulQader496/bpTestSelenium
-          token: ${{ secrets.GITHUB_TOKEN }}
           path: selenium-tests
 
-      # -------------------------------
       # 3. Setup .NET 9
-      # -------------------------------
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
 
-      # ---------------------------------------
-      # 4. Build and start the API in background
-      # ---------------------------------------
-      - name: Build & Start API
+      # 4. Restore & Build API
+      - name: Restore & Build API
         run: |
           dotnet restore
           dotnet build --configuration Release
-          Start-Process -FilePath "dotnet" -ArgumentList "run --urls http://localhost:5000" -NoNewWindow
 
-      # -----------------------------------------------------
-      # 5. Wait until API is reachable (fixes ERR_CONNECTION_REFUSED)
-      # -----------------------------------------------------
-      - name: Wait for API to be Ready
+      # 5. Start the API on localhost:5000
+      - name: Start API
         run: |
-          for ($i=0; $i -lt 40; $i++) {
-            try {
-              Invoke-WebRequest -Uri "http://localhost:5000" -UseBasicParsing -TimeoutSec 1
-              Write-Host "API is UP!"
-              break
-            } catch {
-              Write-Host "Waiting for API..."
-              Start-Sleep -Seconds 1
-            }
+          Write-Host "Starting API..."
+          Start-Process powershell `
+            -ArgumentList "-Command dotnet run --project bp/WebApi --urls http://localhost:5000" `
+            -NoNewWindow
+          Start-Sleep -Seconds 5
+
+      # 6. Wait for API readiness
+      - name: Wait for API
+        run: |
+          $url = "http://localhost:5000"
+          Write-Host "Checking if API is ready..."
+          for ($i = 1; $i -le 30; $i++) {
+              try {
+                  Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 1
+                  Write-Host "API is UP!"
+                  break
+              } catch {
+                  Write-Host "API not ready yet... attempt $i"
+                  Start-Sleep -Seconds 2
+              }
           }
 
-      # -------------------------------
-      # 6. Setup Java
-      # -------------------------------
+      # 7. Setup Java for Selenium
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      # -------------------------------
-      # 7. Setup Chrome for Selenium
-      # -------------------------------
+      # 8. Setup Chrome
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
 
-      # -------------------------------
-      # 8. Run Selenium tests (Java + Maven)
-      # -------------------------------
+      # 9. Run Selenium Tests
       - name: Run Selenium Tests
         working-directory: selenium-tests
         run: mvn -B test
 
-      # -------------------------------
-      # 9. Upload test results
-      # -------------------------------
+      # 10. Upload Test Reports
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         with:
