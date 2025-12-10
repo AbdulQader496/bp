@@ -1,18 +1,27 @@
-name: Run E2E Tests on Windows
+name: Run E2E Tests (Windows)
 
 on:
   workflow_dispatch:
   push:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   e2e:
     runs-on: windows-latest
 
+    env:
+      WDM_FORCE_DOWNLOAD: true   # Ensures WebDriverManager picks correct ChromeDriver
+
     steps:
-      - name: Checkout App Repo
+      # -------------------------------
+      # 1. Checkout the .NET app repo
+      # -------------------------------
+      - name: Checkout App Repo (bp)
         uses: actions/checkout@v4
 
+      # ----------------------------------------
+      # 2. Checkout the Selenium test repository
+      # ----------------------------------------
       - name: Checkout Selenium Test Repo
         uses: actions/checkout@v4
         with:
@@ -20,32 +29,66 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: selenium-tests
 
+      # -------------------------------
+      # 3. Setup .NET 9
+      # -------------------------------
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
 
-      - name: Build and Run App
+      # ---------------------------------------
+      # 4. Build and start the API in background
+      # ---------------------------------------
+      - name: Build & Start API
         run: |
           dotnet restore
           dotnet build --configuration Release
           Start-Process -FilePath "dotnet" -ArgumentList "run --urls http://localhost:5000" -NoNewWindow
 
+      # -----------------------------------------------------
+      # 5. Wait until API is reachable (fixes ERR_CONNECTION_REFUSED)
+      # -----------------------------------------------------
+      - name: Wait for API to be Ready
+        run: |
+          for ($i=0; $i -lt 40; $i++) {
+            try {
+              Invoke-WebRequest -Uri "http://localhost:5000" -UseBasicParsing -TimeoutSec 1
+              Write-Host "API is UP!"
+              break
+            } catch {
+              Write-Host "Waiting for API..."
+              Start-Sleep -Seconds 1
+            }
+          }
+
+      # -------------------------------
+      # 6. Setup Java
+      # -------------------------------
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
 
+      # -------------------------------
+      # 7. Setup Chrome for Selenium
+      # -------------------------------
       - name: Setup Chrome
         uses: browser-actions/setup-chrome@v1
 
+      # -------------------------------
+      # 8. Run Selenium tests (Java + Maven)
+      # -------------------------------
       - name: Run Selenium Tests
         working-directory: selenium-tests
         run: mvn -B test
 
+      # -------------------------------
+      # 9. Upload test results
+      # -------------------------------
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         with:
-          name: selenium-results
+          name: selenium-test-results
           path: selenium-tests/target/surefire-reports
