@@ -1,82 +1,77 @@
-name: Run E2E Tests (Windows)
+name: E2E Tests
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
+  pull_request:
 
 jobs:
-  e2e:
+  e2e-tests:
     runs-on: windows-latest
 
     steps:
-      # 1. Checkout .NET App (Repo A)
-      - name: Checkout App Repo
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      # 2. Checkout Selenium Test Repo
-      - name: Checkout Selenium Test Repo
-        uses: actions/checkout@v4
-        with:
-          repository: AbdulQader496/bpTestSelenium
-          path: selenium-tests
+    - name: Setup .NET 9
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
 
-      # 3. Setup .NET 9
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
+    - name: Install Chrome
+      uses: browser-actions/setup-chrome@v1
 
-      # 4. Restore & Build API
-      - name: Restore & Build API
-        run: |
-          dotnet restore
-          dotnet build --configuration Release
+    - name: Install ChromeDriver matching Chrome
+      run: |
+        $chromeVersion = (chrome --version).Split(" ")[2]
+        echo "Chrome version: $chromeVersion"
+        
+        Invoke-WebRequest `
+          -Uri "https://msedgedriver.azureedge.net/LATEST_RELEASE_$chromeVersion" `
+          -OutFile latest.txt
 
-      # 5. Start the API on localhost:5000
-      - name: Start API
-        run: |
-          Write-Host "Starting API..."
-          Start-Process powershell `
-            -ArgumentList "-Command dotnet run --project bp/WebApi --urls http://localhost:5000" `
-            -NoNewWindow
-          Start-Sleep -Seconds 5
+        $driverVersion = Get-Content latest.txt
 
-      # 6. Wait for API readiness
-      - name: Wait for API
-        run: |
-          $url = "http://localhost:5000"
-          Write-Host "Checking if API is ready..."
-          for ($i = 1; $i -le 30; $i++) {
-              try {
-                  Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 1
-                  Write-Host "API is UP!"
-                  break
-              } catch {
-                  Write-Host "API not ready yet... attempt $i"
-                  Start-Sleep -Seconds 2
-              }
-          }
+        echo "Installing ChromeDriver version: $driverVersion"
 
-      # 7. Setup Java for Selenium
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
+        Invoke-WebRequest `
+          -Uri "https://msedgedriver.azureedge.net/$driverVersion/chromedriver_win32.zip" `
+          -OutFile driver.zip
+        
+        Expand-Archive driver.zip -DestinationPath "C:\Tools\ChromeDriver"
+        echo "C:\Tools\ChromeDriver" | Out-File -FilePath $env:GITHUB_PATH -Append
 
-      # 8. Setup Chrome
-      - name: Setup Chrome
-        uses: browser-actions/setup-chrome@v1
+    - name: Print Chrome & ChromeDriver versions
+      run: |
+        chrome --version
+        chromedriver --version
 
-      # 9. Run Selenium Tests
-      - name: Run Selenium Tests
-        working-directory: selenium-tests
-        run: mvn -B test
+    - name: Restore Dependencies
+      run: dotnet restore
 
-      # 10. Upload Test Reports
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v4
-        with:
-          name: selenium-test-results
-          path: selenium-tests/target/surefire-reports
+    - name: Build API
+      run: dotnet build BPCalculator/BPCalculator.csproj --configuration Release
+
+    - name: Start API in background
+      run: |
+        Start-Process -NoNewWindow `
+          dotnet `
+          -ArgumentList "run --project BPCalculator/BPCalculator.csproj --urls http://localhost:5000"
+
+    - name: Wait for API to start
+      run: |
+        echo "Waiting for http://localhost:5000 ..."
+        for ($i = 1; $i -le 40; $i++) {
+            try {
+                $result = Invoke-WebRequest -Uri "http://localhost:5000" -UseBasicParsing -TimeoutSec 2
+                echo "API is UP!"
+                break
+            } catch {
+                echo "API not ready yet... ($i/40)"
+                Start-Sleep -Seconds 2
+            }
+        }
+
+    - name: Run Selenium Tests
+      run: mvn -f selenium-tests/pom.xml clean test
