@@ -13,38 +13,23 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # ---------------------------
-      # 1. Checkout
-      # ---------------------------
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # ---------------------------
-      # 2. Setup .NET 9
-      # ---------------------------
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
 
-      # ---------------------------
-      # 3. Build API
-      # ---------------------------
       - name: Build API
         run: |
           dotnet restore "BPCalculator/BPCalculator.csproj"
           dotnet build "BPCalculator/BPCalculator.csproj" --configuration Release
 
-      # ---------------------------
-      # 4. Start API on localhost:5000
-      # ---------------------------
       - name: Start API
         run: |
           Start-Process -NoNewWindow -FilePath "dotnet" -ArgumentList "run --project BPCalculator/BPCalculator.csproj --urls http://localhost:5000"
 
-      # ---------------------------
-      # 5. Wait until API is UP
-      # ---------------------------
       - name: Wait for API
         run: |
           for ($i=1; $i -le 40; $i++) {
@@ -58,145 +43,46 @@ jobs:
             }
           }
 
-      # ---------------------------
-      # 6. Setup Java (Maven tests)
-      # ---------------------------
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: "21"
 
-      # ---------------------------
-      # 7. Install Google Chrome
-      # ---------------------------
       - name: Install Chrome
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://dl.google.com/chrome/install/GoogleChromeStandaloneEnterprise64.msi" -OutFile chrome.msi
           Start-Process msiexec.exe -ArgumentList "/i chrome.msi /qn /norestart" -Wait
 
-      # ---------------------------
-      # 8. Install ChromeDriver (fixed version)
-      # ---------------------------
-      - name: Install ChromeDriver (simplified)
+      # FIXED CHROME DRIVER INSTALLER
+      - name: Install ChromeDriver (auto)
+        shell: pwsh
         run: |
-          Invoke-WebRequest "https://chromedriver.storage.googleapis.com/143.0.0/chromedriver_win32.zip" -OutFile driver.zip
-          Expand-Archive driver.zip -DestinationPath "C:/ChromeDriver"
-          echo "C:/ChromeDriver" | Out-File -Append $env:GITHUB_PATH
+          $chromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"
+          $version = (Get-Item $chromePath).VersionInfo.FileVersion
+          Write-Host "Chrome version detected: $version"
 
-      # ---------------------------
-      # 9. Run Selenium E2E Tests
-      # ---------------------------
+          $major = $version.Split(".")[0]
+          Write-Host "Major version: $major"
+
+          $json = Invoke-RestMethod "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json"
+
+          $matched = $json.channels.Stable.downloads.chromedriver | Where-Object { $_.url -like "*win64*" }
+          $driverUrl = $matched.url
+
+          Write-Host "Downloading ChromeDriver from: $driverUrl"
+
+          Invoke-WebRequest $driverUrl -OutFile "driver.zip"
+          Expand-Archive driver.zip -DestinationPath "C:\ChromeDriver" -Force
+          echo "C:\ChromeDriver" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
       - name: Run Selenium tests
         working-directory: selenium-tests
         run: mvn clean test
 
-      # ---------------------------
-      # 10. Upload Test Results
-      # ---------------------------
       - name: Upload Test Reports
         uses: actions/upload-artifact@v4
         with:
           name: selenium-reports
           path: selenium-tests/target/surefire-reports
-
-
-
-
-
-
-# name: Run E2E Tests (Windows)
-
-# on:
-#   workflow_dispatch:
-#   push:
-#     branches: [ main ]
-
-# jobs:
-#   e2e:
-#     runs-on: windows-latest
-
-#     env:
-#       WDM_FORCE_DOWNLOAD: true   # Ensures WebDriverManager picks correct ChromeDriver
-
-#     steps:
-#       # -------------------------------
-#       # 1. Checkout the .NET app repo
-#       # -------------------------------
-#       - name: Checkout App Repo (bp)
-#         uses: actions/checkout@v4
-
-#       # ----------------------------------------
-#       # 2. Checkout the Selenium test repository
-#       # ----------------------------------------
-#       - name: Checkout Selenium Test Repo
-#         uses: actions/checkout@v4
-#         with:
-#           repository: AbdulQader496/bpTestSelenium
-#           token: ${{ secrets.GITHUB_TOKEN }}
-#           path: selenium-tests
-
-#       # -------------------------------
-#       # 3. Setup .NET 9
-#       # -------------------------------
-#       - name: Setup .NET
-#         uses: actions/setup-dotnet@v4
-#         with:
-#           dotnet-version: '9.0.x'
-
-#       # ---------------------------------------
-#       # 4. Build and start the API in background
-#       # ---------------------------------------
-#       - name: Build & Start API
-#         run: |
-#           dotnet restore
-#           dotnet build --configuration Release
-#           Start-Process -FilePath "dotnet" -ArgumentList "run --urls http://localhost:5000" -NoNewWindow
-
-#       # -----------------------------------------------------
-#       # 5. Wait until API is reachable (fixes ERR_CONNECTION_REFUSED)
-#       # -----------------------------------------------------
-#       - name: Wait for API to be Ready
-#         run: |
-#           for ($i=0; $i -lt 40; $i++) {
-#             try {
-#               Invoke-WebRequest -Uri "http://localhost:5000" -UseBasicParsing -TimeoutSec 1
-#               Write-Host "API is UP!"
-#               break
-#             } catch {
-#               Write-Host "Waiting for API..."
-#               Start-Sleep -Seconds 1
-#             }
-#           }
-
-#       # -------------------------------
-#       # 6. Setup Java
-#       # -------------------------------
-#       - name: Setup Java
-#         uses: actions/setup-java@v4
-#         with:
-#           distribution: 'temurin'
-#           java-version: '21'
-
-#       # -------------------------------
-#       # 7. Setup Chrome for Selenium
-#       # -------------------------------
-#       - name: Setup Chrome
-#         uses: browser-actions/setup-chrome@v1
-
-#       # -------------------------------
-#       # 8. Run Selenium tests (Java + Maven)
-#       # -------------------------------
-#       - name: Run Selenium Tests
-#         working-directory: selenium-tests
-#         run: mvn -B test
-
-#       # -------------------------------
-#       # 9. Upload test results
-#       # -------------------------------
-#       - name: Upload Test Results
-#         uses: actions/upload-artifact@v4
-#         with:
-#           name: selenium-test-results
-#           path: selenium-tests/target/surefire-reports
