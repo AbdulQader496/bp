@@ -26,13 +26,19 @@ jobs:
     - name: Build API
       run: dotnet build ./BPCalculator/BPCalculator.csproj --configuration Release
 
-    # ==== RUN API ON localhost:5000 ====
-    - name: Start API
+    # ==== FIX: PUBLISH & START API (REAL RUNNING PROCESS) ====
+    - name: Publish API
+      shell: pwsh
+      run: |
+        cd BPCalculator
+        dotnet publish -c Release -o published
+
+    - name: Start API (Background Process)
       shell: pwsh
       run: |
         Write-Host "Starting API on http://localhost:5000"
-        Start-Process -FilePath "dotnet" -ArgumentList "run --project ./BPCalculator/BPCalculator.csproj --urls=http://localhost:5000" -WindowStyle Hidden
-        Start-Sleep -Seconds 10
+        Start-Process -FilePath "./BPCalculator/published/BPCalculator.exe"
+        Start-Sleep -Seconds 8
 
     - name: Verify API is Running
       shell: pwsh
@@ -52,7 +58,7 @@ jobs:
       shell: pwsh
       run: chrome --version
 
-    # ==== INSTALL MATCHING CHROME DRIVER ====
+    # ==== INSTALL CHROME DRIVER ====
     - name: Install ChromeDriver (Auto-Matched)
       uses: nanasess/setup-chromedriver@v2
 
@@ -72,4 +78,3 @@ jobs:
       shell: pwsh
       working-directory: ./selenium-tests
       run: mvn test -Dmaven.test.failure.ignore=false
-
