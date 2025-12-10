@@ -1,4 +1,4 @@
-name: Selenium E2E Tests
+name: Cucumber BDD Tests
 
 on:
   push:
@@ -66,21 +66,21 @@ jobs:
       shell: pwsh
       run: chromedriver --version
 
-    # ==== INSTALL JAVA FOR SELENIUM TESTS ====
+    # ==== INSTALL JAVA FOR SELENIUM/BDD TESTS ====
     - name: Setup Java 21
       uses: actions/setup-java@v5
       with:
         distribution: 'temurin'
         java-version: '21'
 
-    # ==== CLONE SELENIUM TESTS ====
-    - name: Clone Selenium Repo
+    # ==== CLONE BDD TESTS ====
+    - name: Clone BDD Repo
       uses: actions/checkout@v4
       with:
-        repository: AbdulQader496/bpTestSelenium
+        repository: AbdulQader496/bpTestBDD
         path: selenium-tests
 
-    # ==== RUN SELENIUM TESTS ====
+    # ==== RUN BDD TESTS ====
     - name: Run Maven Tests
       shell: pwsh
       working-directory: ./selenium-tests
