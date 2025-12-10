@@ -1,0 +1,85 @@
+name: Run Java Selenium E2E Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ------------------------------
+      # 1. Checkout Repo A (.NET App)
+      # ------------------------------
+      - name: Checkout App Repo (bp)
+        uses: actions/checkout@v4
+
+      # ------------------------------
+      # 2. Checkout Repo B (Java Selenium Tests)
+      # ------------------------------
+      - name: Checkout Selenium Repo
+        uses: actions/checkout@v4
+        with:
+          repository: AbdulQader496/bpTestSelenium
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: selenium-tests
+
+      # ------------------------------
+      # 3. Install .NET 9
+      # ------------------------------
+      - name: Set up .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      # ------------------------------
+      # 4. Build & Run .NET App
+      # ------------------------------
+      - name: Build .NET Application
+        run: |
+          dotnet restore
+          dotnet build --configuration Release
+
+      - name: Start the API in background
+        run: |
+          nohup dotnet run --urls "http://localhost:5000" > app.log 2>&1 &
+
+      # ------------------------------
+      # 5. Install Java + Maven
+      # ------------------------------
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'     # or match your Selenium test version
+
+      - name: Install Maven
+        run: sudo apt-get install -y maven
+
+      # ------------------------------
+      # 6. Install Chrome for Selenium
+      # ------------------------------
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Install ChromeDriver
+        uses: nanasess/setup-chromedriver@v2
+
+      # ------------------------------
+      # 7. Run Selenium Tests (Java + Maven)
+      # ------------------------------
+      - name: Run Java Selenium Tests
+        working-directory: selenium-tests
+        run: |
+          mvn clean test
+
+      # ------------------------------
+      # 8. Upload Test Reports
+      # ------------------------------
+      - name: Upload Selenium Test Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-report
+          path: selenium-tests/target/surefire-reports/*
