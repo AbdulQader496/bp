@@ -77,4 +77,4 @@ jobs:
     - name: Run Maven Tests
       shell: pwsh
       working-directory: ./selenium-tests
-      run: mvn -Dmaven.test.failure.ignore=false test
+      run: mvn test
