@@ -38,7 +38,7 @@ jobs:
       run: |
         Write-Host "Starting API on http://localhost:5000"
         Start-Process -FilePath "./BPCalculator/published/BPCalculator.exe"
-        Start-Sleep -Seconds 8
+        Start-Sleep -Seconds 30
 
     - name: Verify API is Running
       shell: pwsh
