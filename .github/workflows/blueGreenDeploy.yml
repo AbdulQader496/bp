@@ -68,7 +68,7 @@ jobs:
         with:
           inlineScript: |
             az webapp deployment slot swap \
-              --resource-group bp-ca1_group \
+              --resource-group bp-ca1 \
               --name bp-ca1 \
               --slot staging \
               --target-slot production
