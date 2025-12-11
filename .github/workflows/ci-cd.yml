@@ -1,0 +1,273 @@
+name: Full CI-CD with Tests, Security & Blue-Green
+
+on:
+  push:
+    branches:
+      - dev
+      - master
+  workflow_dispatch:
+
+env:
+  APP_NAME: bp-ca1
+  RESOURCE_GROUP: bp-ca1
+  STAGING_SLOT_NAME: staging
+  PROD_URL: https://bp-ca1.azurewebsites.net
+  STAGING_URL: https://bp-ca1-staging.azurewebsites.net
+
+# ======================================================
+# JOB 1 — BUILD + ODC + UNIT TESTS + PUBLISH ARTIFACT
+# ======================================================
+jobs:
+  build_and_prechecks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      # ---- OWASP DEPENDENCY CHECK ----
+      - name: Cache Dependency-Check data
+        uses: actions/cache@v4
+        with:
+          path: ~/.dependency-check
+          key: ${{ runner.os }}-dependency-check
+          restore-keys: |
+            ${{ runner.os }}-dependency-check
+
+      - name: Run OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: "bp"
+          path: "."
+          format: "HTML"
+          out: "dependency-check-report"
+
+      - name: Upload Dependency-Check report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: dependency-check-report
+
+      # ---- BUILD ----
+      - name: Build solution
+        run: dotnet build -c Release --no-restore
+
+      # ---- UNIT TESTS ----
+      - name: Run Unit tests (excluding E2E)
+        run: dotnet test -c Release --no-build --filter "TestCategory!=E2E"
+
+      # ---- PUBLISH ARTIFACT ----
+      - name: Publish Application
+        run: dotnet publish BPCalculator/BPCalculator.csproj -c Release -o ./publish
+
+      - name: Upload publish artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bpapp
+          path: ./publish
+
+# ======================================================
+# JOB 2 — LOCAL SELENIUM + BDD TESTS (WINDOWS)
+# ======================================================
+  local_selenium_bdd_tests:
+    runs-on: windows-latest
+    needs: build_and_prechecks
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Main Repo (.NET App)
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      # ==== BUILD + START LOCAL WEBSITE ====
+      - name: Restore Website
+        run: dotnet restore ./BPCalculator/BPCalculator.csproj
+
+      - name: Build Website
+        run: dotnet build ./BPCalculator/BPCalculator.csproj --configuration Release
+
+      - name: Publish Website
+        shell: pwsh
+        run: |
+          cd BPCalculator
+          dotnet publish -c Release -o published
+
+      - name: Start Local Website
+        shell: pwsh
+        run: |
+          Write-Host "Starting Website on http://localhost:5000"
+          Start-Process -FilePath "./BPCalculator/published/BPCalculator.exe"
+          Start-Sleep -Seconds 30
+
+      - name: Verify Website Running
+        shell: pwsh
+        run: |
+          $response = Invoke-WebRequest -Uri "http://localhost:5000" -UseBasicParsing
+          Write-Host "API is running with status code: $($response.StatusCode)"
+
+      # ==== INSTALL CHROME ====
+      - name: Install Google Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: latest
+
+      - name: Check Chrome Version
+        shell: pwsh
+        run: chrome --version
+
+      # ==== INSTALL CHROMEDRIVER ====
+      - name: Install ChromeDriver
+        uses: nanasess/setup-chromedriver@v2
+
+      - name: Check ChromeDriver Version
+        shell: pwsh
+        run: chromedriver --version
+
+      # ==== INSTALL JAVA FOR SELENIUM & BDD ====
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      # ==== RUN SELENIUM TESTS ====
+      - name: Clone Selenium Repo
+        uses: actions/checkout@v4
+        with:
+          repository: AbdulQader496/bpTestSelenium
+          path: selenium-tests
+
+      - name: Run Selenium Tests
+        shell: pwsh
+        working-directory: ./selenium-tests
+        run: mvn test
+
+      # ==== RUN BDD TESTS ====
+      - name: Clone BDD Repo
+        uses: actions/checkout@v4
+        with:
+          repository: AbdulQader496/bpTestBDD
+          path: bdd-tests
+
+      - name: Run BDD Tests
+        shell: pwsh
+        working-directory: ./bdd-tests
+        run: mvn test
+
+# ======================================================
+# JOB 3 — DEPLOY TO STAGING SLOT (DEV & MASTER)
+# ======================================================
+  deploy_staging:
+    needs:
+      - build_and_prechecks
+      - local_selenium_bdd_tests
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    if: github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/master'
+    environment: staging
+
+    steps:
+      - name: Download publish artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bpapp
+          path: ./publish
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Staging Slot
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.APP_NAME }}
+          slot-name: ${{ env.STAGING_SLOT_NAME }}
+          package: ./publish
+
+# ======================================================
+# JOB 4 — STAGING SECURITY TESTS (ZAP)
+# ======================================================
+  staging_security_tests:
+    needs: deploy_staging
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    if: github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Prepare ZAP report directory
+        run: mkdir -p zap-report
+
+      - name: Pull ZAP Docker image
+        run: docker pull zaproxy/zap-weekly
+
+      - name: ZAP Baseline Scan vs Staging URL
+        env:
+          TARGET_URL: ${{ env.STAGING_URL }}
+        run: |
+          docker run \
+            -v ${{ github.workspace }}/zap-report:/zap/wrk \
+            --user root \
+            zaproxy/zap-weekly \
+            zap-baseline.py \
+            -t "$TARGET_URL" \
+            -I \
+            -r zapreport.html
+
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: zap-report
+
+# ======================================================
+# JOB 5 — SLOT SWAP TO PROD (ONLY ON MASTER + MANUAL APPROVAL)
+# ======================================================
+  swap_staging_to_prod:
+    needs:
+      - deploy_staging
+      - staging_security_tests
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    if: github.ref == 'refs/heads/master'
+    environment:
+      name: prod      # configure manual approval in GitHub Environments
+      url: ${{ env.PROD_URL }}
+
+    steps:
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Swap staging → production
+        run: |
+          az webapp deployment slot swap \
+            --name ${{ env.APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --slot ${{ env.STAGING_SLOT_NAME }} \
+            --target-slot production
