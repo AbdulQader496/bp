@@ -27,7 +27,7 @@ jobs:
       run: dotnet build ./BPCalculator/BPCalculator.csproj --configuration Release
 
     # ==== FIX: PUBLISH & START API (REAL RUNNING PROCESS) ====
-    - name: Publish API
+    - name: Publish Website
       shell: pwsh
       run: |
         cd BPCalculator
