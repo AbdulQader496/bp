@@ -37,10 +37,10 @@ jobs:
 
 
   deploy:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest   # 🔥 REQUIRED FIX: Linux runner for azure/cli
     needs: build
     permissions:
-      id-token: write      # REQUIRED for Azure OIDC login
+      id-token: write
       contents: read
 
     steps:
@@ -56,7 +56,6 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Deploy to STAGING slot (Blue environment)
       - name: Deploy to Staging Slot
         uses: azure/webapps-deploy@v3
         with:
@@ -64,7 +63,6 @@ jobs:
           slot-name: "staging"
           package: .
 
-      # Swap staging → production (Blue → Green)
       - name: Swap Staging -> Production
         uses: azure/cli@v2
         with:
