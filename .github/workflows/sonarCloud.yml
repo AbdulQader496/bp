@@ -24,55 +24,52 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Cache SonarCloud packages
-        uses: actions/cache@v4
-        with:
-          path: ~\sonar\cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-
-      - name: Cache SonarCloud scanner
-        id: cache-sonar-scanner
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}\scanner
-          key: ${{ runner.os }}-sonar-scanner
-          restore-keys: ${{ runner.os }}-sonar-scanner
-
-      - name: Install SonarCloud scanner
-        if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
+      - name: Install SonarScanner for .NET
         shell: powershell
         run: |
-          New-Item -Path ${{ runner.temp }}\scanner -ItemType Directory
-          dotnet tool update dotnet-sonarscanner --tool-path ${{ runner.temp }}\scanner
+          dotnet tool install --global dotnet-sonarscanner
+          echo "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: Begin SonarCloud analysis
+      # =======================
+      # SONAR BEGIN
+      # =======================
+      - name: SonarCloud - Begin analysis
+        shell: powershell
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        shell: powershell
         run: |
-          ${{ runner.temp }}\scanner\dotnet-sonarscanner begin `
+          dotnet-sonarscanner begin `
             /k:"AbdulQader496_bp" `
             /o:"abdulqader496" `
-            /d:sonar.token="$env:SONAR_TOKEN" `
-            /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml"
-            
+            /d:sonar.host.url="https://sonarcloud.io" `
+            /d:sonar.login="$env:SONAR_TOKEN" `
+            /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml" `
+            /d:sonar.exclusions="**/bin/**,**/obj/**,**/*.dll,**/*.json,**/*.g.cs,**/*.cshtml,**/wwwroot/**,.github/workflows/**,k6Test/**" `
+            /d:sonar.coverage.exclusions="**/Program.cs,**/Startup.cs,**/*.cshtml.cs,**/Pages/**/*,**/*Model.cs,k6Test/**"
+      # =======================
+
+      - name: Restore dependencies
+        shell: powershell
+        run: dotnet restore
+
       - name: Build solution
         shell: powershell
-        run: dotnet build BPCalculator.sln --configuration Debug
+        run: dotnet build BPCalculator.sln --configuration Debug --no-restore
 
-      - name: Run Tests with Coverage (OpenCover)
+      - name: Test with OpenCover coverage
         shell: powershell
         run: |
           dotnet test TestProject1/TestProject.csproj `
+            --no-build `
             --collect:"XPlat Code Coverage" `
-            --results-directory TestResults `
+            --results-directory "TestResults" `
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
 
-      - name: End SonarCloud analysis
+      # =======================
+      # SONAR END
+      # =======================
+      - name: SonarCloud - End analysis
+        shell: powershell
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        shell: powershell
-        run: |
-          ${{ runner.temp }}\scanner\dotnet-sonarscanner end `
-            /d:sonar.token="$env:SONAR_TOKEN"
+        run: dotnet-sonarscanner end /d:sonar.login="$env:SONAR_TOKEN"
