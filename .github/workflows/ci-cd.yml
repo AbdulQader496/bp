@@ -11,8 +11,8 @@ env:
   APP_NAME: bp-ca1
   RESOURCE_GROUP: bp-ca1
   STAGING_SLOT_NAME: staging
-  PROD_URL: https://bp-ca1.azurewebsites.net
-  STAGING_URL: https://bp-ca1-staging.azurewebsites.net
+  PROD_URL: https://bp-ca1-fagtb8cbeaaue7cq.spaincentral-01.azurewebsites.net/
+  STAGING_URL: https://bp-ca1-staging-f5axbmhyhrcahyax.spaincentral-01.azurewebsites.net/
 
 # ======================================================
 # JOB 1 — BUILD + ODC + UNIT TESTS + PUBLISH ARTIFACT
