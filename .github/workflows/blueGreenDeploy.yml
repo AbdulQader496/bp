@@ -30,7 +30,7 @@ jobs:
         run: dotnet publish -c Release -o "${{ env.DOTNET_ROOT }}/myapp"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@version4
+        uses: actions/upload-artifact@v4
         with:
           name: app
           path: "${{ env.DOTNET_ROOT }}/myapp"
