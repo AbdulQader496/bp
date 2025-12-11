@@ -2,10 +2,10 @@
 # pull docker image
 # run baseline scan on URI and store test result file via volume mounted on container
 
-name: ZAP BMI
+name: ZAP BP Calculator
 
 env:
-  URI: https://gc-bmicalculator-ga-staging.azurewebsites.net/           
+  URI: https://bp-ca1-cwhjbgg7b2f4h8ch.italynorth-01.azurewebsites.net/          
   
 on:
   workflow_dispatch:                  # manually triggered
