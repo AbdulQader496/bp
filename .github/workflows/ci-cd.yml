@@ -121,7 +121,7 @@ jobs:
             /o:"abdulqader496" `
             /d:sonar.host.url="https://sonarcloud.io" `
             /d:sonar.token="$env:SONAR_TOKEN" `
-            /d:sonar.qualitygate.wait=true `
+            /d:sonar.qualitygate.wait=${{ github.ref == 'refs/heads/master' }} `
             /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml" `
             /d:sonar.exclusions="**/bin/**,**/obj/**,**/*.dll,**/*.json,**/*.g.cs,**/*.cshtml,**/wwwroot/**,.github/workflows/**,k6Test/**" `
             /d:sonar.coverage.exclusions="**/Program.cs,**/Startup.cs,**/*.cshtml.cs,**/Pages/**/*,**/*Model.cs,k6Test/**"
