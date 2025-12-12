@@ -14,10 +14,10 @@ env:
   PROD_URL: https://bp-ca1-fagtb8cbeaaue7cq.spaincentral-01.azurewebsites.net/
   STAGING_URL: https://bp-ca1-staging-f5axbmhyhrcahyax.spaincentral-01.azurewebsites.net/
 
-# ======================================================
-# JOB 1 — BUILD + ODC + UNIT TESTS + PUBLISH ARTIFACT
-# ======================================================
 jobs:
+  # ======================================================
+  # JOB 1 — BUILD + ODC + UNIT TESTS + PUBLISH ARTIFACT
+  # ======================================================
   build_and_prechecks:
     runs-on: ubuntu-latest
     permissions:
@@ -76,15 +76,17 @@ jobs:
           name: bpapp
           path: ./publish
 
-# ======================================================
-# JOB 2 — SONARCLOUD ANALYSIS
-# ======================================================
+  # ======================================================
+  # JOB 2 — SONARCLOUD ANALYSIS (WITH QUALITY GATE WAIT)
+  # ======================================================
   sonarcloud_analysis:
     name: SonarCloud Analysis
     runs-on: windows-latest
     needs: build_and_prechecks
+    timeout-minutes: 20
     permissions:
       contents: read
+      pull-requests: read
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
@@ -111,10 +113,7 @@ jobs:
           dotnet tool install --global dotnet-sonarscanner
           echo "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      # =======================
-      # SONAR BEGIN
-      # =======================
-      - name: SonarCloud - Begin analysis
+      - name: SonarCloud - Begin analysis (wait for Quality Gate)
         shell: powershell
         run: |
           dotnet-sonarscanner begin `
@@ -122,6 +121,7 @@ jobs:
             /o:"abdulqader496" `
             /d:sonar.host.url="https://sonarcloud.io" `
             /d:sonar.token="$env:SONAR_TOKEN" `
+            /d:sonar.qualitygate.wait=true `
             /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml" `
             /d:sonar.exclusions="**/bin/**,**/obj/**,**/*.dll,**/*.json,**/*.g.cs,**/*.cshtml,**/wwwroot/**,.github/workflows/**,k6Test/**" `
             /d:sonar.coverage.exclusions="**/Program.cs,**/Startup.cs,**/*.cshtml.cs,**/Pages/**/*,**/*Model.cs,k6Test/**"
@@ -143,33 +143,16 @@ jobs:
             --results-directory "TestResults" `
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
 
-      # =======================
-      # SONAR END
-      # =======================
       - name: SonarCloud - End analysis
         shell: powershell
         run: dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
 
-      # =======================
-      # SONAR Quality Gate Check
-      # =======================
-      - name: SonarCloud Quality Gate
-        uses: SonarSource/sonarqube-quality-gate-action@v1.1.0
-        with:
-          scanMetadataReportFile: .sonarqube/out/.sonar/report-task.txt
-          pollingTimeoutSec: 600
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
-
-
-
-# ======================================================
-# JOB 3 — LOCAL SELENIUM + BDD TESTS (WINDOWS)
-# ======================================================
+  # ======================================================
+  # JOB 3 — LOCAL SELENIUM + BDD TESTS (WINDOWS)
+  # ======================================================
   local_selenium_bdd_tests:
     runs-on: windows-latest
-    needs: 
+    needs:
       - build_and_prechecks
       - sonarcloud_analysis
     permissions:
@@ -235,6 +218,7 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      # ==== MAVEN CACHE (AFTER JAVA SETUP, BEFORE MVN RUN) ====
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
@@ -242,7 +226,6 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-
 
       # ==== RUN SELENIUM TESTS ====
       - name: Clone Selenium Repo
@@ -268,9 +251,9 @@ jobs:
         working-directory: ./bdd-tests
         run: mvn test
 
-# ======================================================
-# JOB 4 — DEPLOY TO STAGING SLOT (DEV & MASTER)
-# ======================================================
+  # ======================================================
+  # JOB 4 — DEPLOY TO STAGING SLOT (DEV & MASTER)
+  # ======================================================
   deploy_staging:
     needs:
       - build_and_prechecks
@@ -304,9 +287,9 @@ jobs:
           slot-name: ${{ env.STAGING_SLOT_NAME }}
           package: ./publish
 
-# ======================================================
-# JOB 5 — STAGING SECURITY & PERFORMANCE TESTS (ZAP + k6)
-# ======================================================
+  # ======================================================
+  # JOB 5 — STAGING SECURITY & PERFORMANCE TESTS (ZAP + k6)
+  # ======================================================
   staging_security_tests:
     needs: deploy_staging
     runs-on: ubuntu-latest
@@ -367,9 +350,9 @@ jobs:
           name: zap-report
           path: zap-report
 
-# ======================================================
-# JOB 6 — SLOT SWAP TO PROD (ONLY ON MASTER + MANUAL APPROVAL) + k6 PROD
-# ======================================================
+  # ======================================================
+  # JOB 6 — SLOT SWAP TO PROD (ONLY ON MASTER + MANUAL APPROVAL) + k6 PROD
+  # ======================================================
   swap_staging_to_prod:
     needs:
       - deploy_staging
@@ -380,7 +363,7 @@ jobs:
       contents: read
     if: github.ref == 'refs/heads/master'
     environment:
-      name: prod      # configure manual approval in GitHub Environments
+      name: prod
       url: ${{ env.PROD_URL }}
 
     steps:
