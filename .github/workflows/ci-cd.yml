@@ -1,4 +1,4 @@
-name: Full CI-CD with Tests, Security & Blue-Green
+name: CI-CD pipeline with Tests, Security & Blue-Green
 
 on:
   push:
@@ -205,7 +205,7 @@ jobs:
           package: ./publish
 
 # ======================================================
-# JOB 4 — STAGING SECURITY TESTS (ZAP)
+# JOB 4 — STAGING SECURITY & PERFORMANCE TESTS (ZAP + k6)
 # ======================================================
   staging_security_tests:
     needs: deploy_staging
@@ -221,6 +221,33 @@ jobs:
       - name: Pull ZAP Docker image
         run: docker pull zaproxy/zap-weekly
 
+      # ---- INSTALL k6 ----
+      - name: Install k6
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gnupg ca-certificates
+          curl https://dl.k6.io/key.gpg | sudo gpg --yes --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      # ---- k6 PERFORMANCE TEST (STAGING) ----
+      - name: Run k6 Performance Test (Staging)
+        env:
+          BASE_URL: ${{ env.STAGING_URL }}
+        run: |
+          echo "Running k6 against STAGING: $BASE_URL"
+          k6 run k6Test/performance.js --out json=k6-staging.json | tee k6-staging.txt
+
+      - name: Upload k6 Staging Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-staging-performance-report
+          path: |
+            k6-staging.txt
+            k6-staging.json
+
+      # ---- ZAP BASELINE SCAN ----
       - name: ZAP Baseline Scan vs Staging URL
         env:
           TARGET_URL: ${{ env.STAGING_URL }}
@@ -241,7 +268,7 @@ jobs:
           path: zap-report
 
 # ======================================================
-# JOB 5 — SLOT SWAP TO PROD (ONLY ON MASTER + MANUAL APPROVAL)
+# JOB 5 — SLOT SWAP TO PROD (ONLY ON MASTER + MANUAL APPROVAL) + k6 PROD
 # ======================================================
   swap_staging_to_prod:
     needs:
@@ -271,3 +298,29 @@ jobs:
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --slot ${{ env.STAGING_SLOT_NAME }} \
             --target-slot production
+
+      # ---- INSTALL k6 FOR PROD TEST ----
+      - name: Install k6
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gnupg ca-certificates
+          curl https://dl.k6.io/key.gpg | sudo gpg --yes --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      # ---- k6 PERFORMANCE TEST (PRODUCTION) ----
+      - name: Run k6 Performance Test (Production)
+        env:
+          BASE_URL: ${{ env.PROD_URL }}
+        run: |
+          echo "Running k6 against PRODUCTION: $BASE_URL"
+          k6 run k6Test/performance.js --out json=k6-prod.json | tee k6-prod.txt
+
+      - name: Upload k6 Production Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-production-performance-report
+          path: |
+            k6-prod.txt
+            k6-prod.json
