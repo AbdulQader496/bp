@@ -150,9 +150,15 @@ jobs:
         shell: powershell
         run: dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
 
+      # =======================
+      # SONAR Quality Gate Check
+      # =======================
+
       - name: SonarCloud Quality Gate
         uses: SonarSource/sonarqube-quality-gate-action@v1.1.0
         timeout-minutes: 5
+        with:
+          scanMetadataReportFile: .sonarqube/out/.sonar/report-task.txt
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
